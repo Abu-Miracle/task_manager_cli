@@ -110,7 +110,7 @@ fn main() {
             Ok(2) => all_tasks.list_tasks(),
             Ok(3) => {
                 all_tasks.list_tasks();
-                let index = get_input("Enter Status Index: ".dimmed().bold());
+                let index = get_input("Enter Task Index: ".dimmed().bold());
                 let task_id = string_to_u32(index).unwrap();
 
                 println!(
@@ -259,7 +259,7 @@ struct TaskManager<T: Display> {
 }
 
 #[derive(Debug, PartialEq)]
-enum TaskStatus {
+pub enum TaskStatus {
     Done,
     InProgress,
     Todo,
