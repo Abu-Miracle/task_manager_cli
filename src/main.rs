@@ -4,10 +4,10 @@ mod cli;
 mod storage;
 
 use crate::cli::get_input;
-use crate::storage::{save_tasks, load_tasks};
+use crate::storage::{load_tasks, save_tasks};
 use colored::Colorize;
 use comfy_table::Table;
-use serde::{Serialize, Deserialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use std::{
     fmt::{Debug, Display},
@@ -80,7 +80,7 @@ fn main() {
 
     // list_tasks(&tasks);
 
-    let task = Task{
+    let task = Task {
         id: 8,
         description: "Hello World".to_string(),
         priority: 2,
@@ -98,7 +98,7 @@ fn main() {
         println!(
             "\n{} {}", 
             "==== WELCOME TO TASK MANAGER CLI ====".green().bold(),
-            "\n\n1) Add Task \n2) List Tasks \n3) Update Status \n4) Menu \n5) Print task table \n6) Get Task by ID \n7) Delete Task by ID \n8) Exit".italic(),
+            "\n\n1) Add Task \n2) List Tasks \n3) Update Task \n4) Menu \n5) Print task table \n6) Get Task by ID \n7) Delete Task by ID \n8) Exit".italic(),
         );
 
         let option = get_input("\nEnter Option: ".dimmed().bold());
@@ -128,28 +128,117 @@ fn main() {
                 let index = get_input("Enter Task Index: ".dimmed().bold());
                 let task_id = string_to_u32(index).unwrap();
 
-                println!(
-                    "{}{}{}{}",
-                    "\nChoose new status ".dimmed().bold(),
-                    "\n\t1) Todo".blue(),
-                    "\n\t2) InProgress\n\t".yellow(),
-                    "3) Done".bright_green()
-                );
-
-                let status = get_input("Enter status: ".dimmed().bold());
-
                 if let Some(task) = all_tasks.tasks.iter_mut().find(|x| x.id == task_id) {
-                    match string_to_u32(status) {
-                        Ok(1) => task.status = TaskStatus::Todo,
-                        Ok(2) => task.status = TaskStatus::InProgress,
-                        Ok(3) => task.status = TaskStatus::Done,
-                        Ok(_) => println!("{}", "Priority must be between 1 and 3".red()),
-                        Err(e) => println!("\nError: {}", e),
-                    }
+                    println!(
+                        "{}", 
+                        "What do you want to Update?\n1) Description\n2) Priority\n3) Status\n4) Metadata\n".italic()
+                    );
+                    let update_option = get_input("Enter Option: ".dimmed().bold());
 
-                    // Save to file
-                    if let Err(e) = save_tasks(&all_tasks.tasks) {
-                        println!("Warning: Failed to save tasks - {}", e);
+                    match string_to_u32(update_option) {
+                        Ok(1) => {
+                            let new_desc = get_input("Enter new description: ".dimmed().bold());
+                            task.description = new_desc;
+
+                            println!(
+                                "Successfully updated description to '{}'",
+                                task.description.green()
+                            );
+
+                             // Save to file
+                            if let Err(e) = save_tasks(&all_tasks.tasks) {
+                                println!("Warning: Failed to save tasks - {}", e);
+                            }
+                        }
+                        Ok(2) => {
+                            let new_priority = get_input("Enter new priority: ".dimmed().bold());
+
+                            match string_to_u8(new_priority) {
+                                Ok(1) => {
+                                    task.priority = 1;
+                                    println!(
+                                        "Successfully updated priority to '{}'",
+                                        task.priority.to_string().green()
+                                    );
+                                }
+                                Ok(2) => {
+                                    task.priority = 2;
+                                    println!(
+                                        "Successfully updated priority to '{}'",
+                                        task.priority.to_string().green()
+                                    );
+                                }
+                                Ok(3) => {
+                                    task.priority = 3;
+                                    println!(
+                                        "Successfully updated priority to '{}'",
+                                        task.priority.to_string().green()
+                                    );
+                                }
+                                Ok(_) => println!("Priority must be between 1 and 3!"),
+                                Err(e) => println!("{e}"),
+                            }
+
+                             // Save to file
+                            if let Err(e) = save_tasks(&all_tasks.tasks) {
+                                println!("Warning: Failed to save tasks - {}", e);
+                            }
+                        }
+                        Ok(3) => {
+                            println!(
+                                "{}{}{}{}",
+                                "\nChoose new status ".dimmed().bold(),
+                                "\n\t1) Todo".blue(),
+                                "\n\t2) InProgress\n\t".yellow(),
+                                "3) Done".bright_green()
+                            );
+
+                            let status = get_input("Enter status: ".dimmed().bold());
+
+                            match string_to_u32(status) {
+                                Ok(1) => {
+                                    task.status = TaskStatus::Todo;
+                                    println!("Successfully updated status to '{:?}'", task.status);
+                                }
+                                Ok(2) => {
+                                    task.status = TaskStatus::InProgress;
+                                    println!("Successfully updated status to '{:?}'", task.status);
+                                }
+                                Ok(3) => {
+                                    task.status = TaskStatus::Done;
+                                    println!("Successfully updated status to '{:?}'", task.status);
+                                }
+                                Ok(_) => {
+                                    println!("{}", "Priority must be between 1 and 3".red())
+                                }
+                                Err(e) => println!("\nError: {}", e),
+                            }
+
+                            // Save to file
+                            if let Err(e) = save_tasks(&all_tasks.tasks) {
+                                println!("Warning: Failed to save tasks - {}", e);
+                            }
+                        }
+                        Ok(4) => {
+                            let new_metadata = get_input("Enter new metadat: ".dimmed().bold());
+                            task.metadata = new_metadata;
+
+                            println!(
+                                "Successfully updated description to '{}'",
+                                task.metadata.green()
+                            );
+
+                             // Save to file
+                            if let Err(e) = save_tasks(&all_tasks.tasks) {
+                                println!("Warning: Failed to save tasks - {}", e);
+                            }
+                        }
+                        Ok(_) => {
+                            println!("Invalid Option");
+                        }
+                        Err(e) => {
+                            println!("{e}");
+                        }
                     }
                 } else {
                     println!("Task with ID: '{}' cannot be found", task_id)
@@ -308,11 +397,11 @@ where
 
 impl<T: Display + Serialize + DeserializeOwned> TaskManager<T> {
     fn new() -> Self {
-         let tasks = load_tasks().unwrap_or_else(|e| {
+        let tasks = load_tasks().unwrap_or_else(|e| {
             println!("Warning: Could not load tasks - {}", e);
             Vec::new()
         });
-        
+
         Self { tasks }
     }
 
@@ -334,7 +423,6 @@ impl<T: Display + Serialize + DeserializeOwned> TaskManager<T> {
                 }
 
                 Ok(())
-
             }
             _ => Err("Error: Priority must be between 1 and 3"),
         }
@@ -350,7 +438,7 @@ impl<T: Display + Serialize + DeserializeOwned> TaskManager<T> {
     fn delete_task_by_id(&mut self, id: u32) {
         self.tasks.retain(|x| x.id != id);
 
-         // Save to file
+        // Save to file
         if let Err(e) = save_tasks(&self.tasks) {
             println!("Warning: Failed to save tasks - {}", e);
         }
