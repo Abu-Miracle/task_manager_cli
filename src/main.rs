@@ -4,9 +4,10 @@ mod cli;
 mod storage;
 
 use crate::cli::get_input;
-use crate::storage::save_tasks;
+use crate::storage::{save_tasks, load_tasks};
 use colored::Colorize;
 use comfy_table::Table;
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 use std::{
     fmt::{Debug, Display},
@@ -79,6 +80,20 @@ fn main() {
 
     // list_tasks(&tasks);
 
+    let task = Task{
+        id: 8,
+        description: "Hello World".to_string(),
+        priority: 2,
+        status: TaskStatus::InProgress,
+        metadata: "Personal".to_string(),
+    };
+
+    let serialized = serde_json::to_string_pretty(&task).unwrap();
+    println!("{}", serialized);
+
+    let deserialized: Task<String> = serde_json::from_str(&serialized).unwrap();
+    println!("{:?}", deserialized);
+
     loop {
         println!(
             "\n{} {}", 
@@ -130,6 +145,11 @@ fn main() {
                         Ok(3) => task.status = TaskStatus::Done,
                         Ok(_) => println!("{}", "Priority must be between 1 and 3".red()),
                         Err(e) => println!("\nError: {}", e),
+                    }
+
+                    // Save to file
+                    if let Err(e) = save_tasks(&all_tasks.tasks) {
+                        println!("Warning: Failed to save tasks - {}", e);
                     }
                 } else {
                     println!("Task with ID: '{}' cannot be found", task_id)
@@ -244,7 +264,7 @@ fn main() {
 // Get Specific task
 // Delete
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Task<T: Display> {
     pub id: u32,
     pub description: String,
@@ -258,7 +278,7 @@ struct TaskManager<T: Display> {
     tasks: Vec<Task<T>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum TaskStatus {
     Done,
     InProgress,
@@ -286,23 +306,35 @@ where
     }
 }
 
-impl<T: Display> TaskManager<T> {
+impl<T: Display + Serialize + DeserializeOwned> TaskManager<T> {
     fn new() -> Self {
-        Self { tasks: vec![] }
+         let tasks = load_tasks().unwrap_or_else(|e| {
+            println!("Warning: Could not load tasks - {}", e);
+            Vec::new()
+        });
+        
+        Self { tasks }
     }
 
     fn add_task(&mut self, description: &str, priority: u8, metadata: T) -> Result<(), &str> {
         match priority {
             1..=3 => {
                 let task = Task {
-                    id: self.tasks.len() as u32 + 1,
+                    id: self.get_next_id(),
                     description: description.to_string(),
                     priority,
                     metadata,
                     status: TaskStatus::Todo,
                 };
                 self.tasks.push(task);
+
+                // Save to file
+                if let Err(e) = save_tasks(&self.tasks) {
+                    println!("Warning: Failed to save tasks - {}", e);
+                }
+
                 Ok(())
+
             }
             _ => Err("Error: Priority must be between 1 and 3"),
         }
@@ -317,12 +349,22 @@ impl<T: Display> TaskManager<T> {
 
     fn delete_task_by_id(&mut self, id: u32) {
         self.tasks.retain(|x| x.id != id);
+
+         // Save to file
+        if let Err(e) = save_tasks(&self.tasks) {
+            println!("Warning: Failed to save tasks - {}", e);
+        }
     }
 
     fn list_tasks(&self) {
         for items in &self.tasks {
             println!("{}", items.display());
         }
+    }
+
+    // Helper to get next higher ID
+    fn get_next_id(&self) -> u32 {
+        self.tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1
     }
 
     fn print_table(&self) {
